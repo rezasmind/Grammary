@@ -4,33 +4,7 @@ class GrammaryMenu {
         this.toneSelector = null;
         this.selectedText = '';
         this.isInput = false;
-        this.extensionActive = true;
         this.init();
-        this.setupConnectionMonitoring();
-    }
-
-    setupConnectionMonitoring() {
-        // Monitor connection status using port
-        this.port = chrome.runtime.connect({ name: 'grammary-menu' });
-        
-        this.port.onDisconnect.addListener(() => {
-            console.log('Extension connection lost - context invalidated');
-            this.extensionActive = false;
-            
-            // Clean up any ongoing operations
-            this.hideMenu();
-            
-            // Attempt to reconnect after a delay
-            setTimeout(() => {
-                try {
-                    this.port = chrome.runtime.connect({ name: 'grammary-menu' });
-                    this.extensionActive = true;
-                    console.log('Reconnected to extension');
-                } catch (err) {
-                    console.log('Failed to reconnect:', err);
-                }
-            }, 1000);
-        });
     }
 
     init() {
@@ -275,8 +249,9 @@ class GrammaryMenu {
     addButton(container, text, onClick) {
         const button = document.createElement('button');
         button.innerHTML = text;
-        button.type = 'button';
+        button.type = 'button'; // Explicitly set button type
         
+        // Improved click handling
         button.addEventListener('mousedown', (e) => {
             e.preventDefault();
             e.stopPropagation();
@@ -285,11 +260,6 @@ class GrammaryMenu {
         button.addEventListener('click', async (e) => {
             e.preventDefault();
             e.stopPropagation();
-            
-            if (!this.extensionActive) {
-                alert('Extension connection lost. Please refresh the page.');
-                return;
-            }
             
             // Hide tone selector if it's visible
             if (this.toneSelector && this.toneSelector.style.display === 'block') {
@@ -305,11 +275,7 @@ class GrammaryMenu {
                     await Promise.resolve(onClick());
                 } catch (error) {
                     console.error('Button click error:', error);
-                    if (error.message.includes('Extension connection lost')) {
-                        alert(error.message);
-                    } else {
-                        alert('خطا در اجرای عملیات');
-                    }
+                    alert('خطا در اجرای عملیات');
                 } finally {
                     resetLoading();
                 }
@@ -334,10 +300,6 @@ class GrammaryMenu {
     }
 
     async callOpenRouter(prompt, systemPrompt = '') {
-        if (!this.extensionActive) {
-            throw new Error('Extension connection lost. Please refresh the page.');
-        }
-
         try {
             const response = await chrome.runtime.sendMessage({
                 type: 'openRouterRequest',
@@ -351,10 +313,6 @@ class GrammaryMenu {
             
             return response;
         } catch (error) {
-            if (error.message.includes('Extension context invalidated')) {
-                this.extensionActive = false;
-                throw new Error('Extension connection lost. Please refresh the page.');
-            }
             console.error('Error calling OpenRouter:', error);
             throw error;
         }
